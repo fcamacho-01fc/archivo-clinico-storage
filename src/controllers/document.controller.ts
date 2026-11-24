@@ -1,7 +1,5 @@
-import type { UploadApiResponse } from 'cloudinary';
 import type { Request, Response } from 'express';
-import { isObjectIdOrHexString, Types } from 'mongoose';
-import { getCloudinary, uploadFolder } from '../config/cloudinary.js';
+import { isObjectIdOrHexString } from 'mongoose';
 import { HttpError } from '../middleware/error.middleware.js';
 import { Document, documentTypes } from '../models/document.model.js';
 import { requirePatient } from './patient.controller.js';
@@ -9,8 +7,10 @@ import { requirePatient } from './patient.controller.js';
 export async function listDocuments(request: Request<{ id: string }>, response: Response) {
   const { id } = request.params;
   await requirePatient(id);
-  const documents = await Document.find({ patient: id }).sort({ createdAt: -1, _id: -1 }).lean();
-  response.json({ data: documents });
+
+  // TODO 03 (Guiado). Consulta el modelo Document por el ID del expediente.
+  // Devuelve 200 con { data } y los metadatos y URLs guardados en MongoDB.
+  throw new HttpError(501, 'NOT_IMPLEMENTED', 'La consulta de documentos está pendiente.');
 }
 
 export async function uploadDocuments(request: Request<{ id: string }>, response: Response) {
@@ -26,79 +26,11 @@ export async function uploadDocuments(request: Request<{ id: string }>, response
 
   const patientId = request.params.id;
   await requirePatient(patientId);
-  const uploadedImages = await uploadImages(files);
-  let documents;
-  try {
-    documents = await saveDocuments(patientId, documentType, files, uploadedImages);
-  } catch (error) {
-    await cleanUploadedImages(uploadedImages);
-    throw error;
-  }
 
-  response.status(201).json({ data: documents });
-}
-
-async function uploadImages(files: Express.Multer.File[]) {
-  const cloudinary = requireCloudinary();
-  const uploadedImages: UploadApiResponse[] = [];
-
-  try {
-    for (const file of files) {
-      const image = await new Promise<UploadApiResponse>((resolve, reject) => {
-        // Multer ya tiene la imagen en memoria, así que se escribe el buffer en el stream del SDK.
-        cloudinary.uploader.upload_stream({
-          resource_type: 'image',
-          asset_folder: uploadFolder,
-          allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-        }, (error, result) => {
-          if (error || !result) {
-            reject(error ?? new Error('Cloudinary no devolvió la imagen.'));
-            return;
-          }
-
-          resolve(result);
-        }).end(file.buffer);
-      });
-
-      uploadedImages.push(image);
-    }
-
-    return uploadedImages;
-  } catch {
-    await cleanUploadedImages(uploadedImages);
-    throw new HttpError(502, 'CLOUDINARY_UPLOAD_FAILED', 'Cloudinary no pudo cargar el lote de imágenes.');
-  }
-}
-
-async function saveDocuments(
-  patientId: string,
-  documentType: string,
-  files: Express.Multer.File[],
-  uploadedImages: UploadApiResponse[],
-) {
-  const records = uploadedImages.map((image, index) => ({
-    _id: new Types.ObjectId(),
-    patient: patientId,
-    documentType,
-    originalName: files[index].originalname,
-    cloudinaryPublicId: image.public_id,
-    cloudinaryUrl: image.secure_url,
-    mimeType: files[index].mimetype,
-    size: files[index].size,
-  }));
-
-  try {
-    return await Document.insertMany(records);
-  } catch {
-    try {
-      // Los IDs del lote permiten retirar cualquier registro escrito antes del fallo.
-      await Document.deleteMany({ _id: { $in: records.map((record) => record._id) } });
-    } catch {
-      console.error('No se pudieron limpiar los metadatos del lote fallido.');
-    }
-
-    throw new HttpError(500, 'DOCUMENT_SAVE_FAILED', 'No se pudieron guardar los metadatos en MongoDB.');
-  }
+  // TODO 04 (Guiado). Usa getCloudinary de src/config/cloudinary.ts para subir cada buffer de request.files.
+  // Guarda el public_id, la secure_url y los metadatos de cada archivo con patientId y documentType.
+  // Devuelve 201 con { data } y los documentos creados. Si falla el lote, intenta limpiar lo que ya se creó.
+  throw new HttpError(501, 'NOT_IMPLEMENTED', 'La carga de documentos está pendiente.');
 }
 
 export async function getDocumentUrl(request: Request<{ id: string }>, response: Response) {
@@ -107,24 +39,14 @@ export async function getDocumentUrl(request: Request<{ id: string }>, response:
 }
 
 export async function downloadDocument(request: Request<{ id: string }>, response: Response) {
-  const document = await requireDocument(request.params.id);
-  const downloadUrl = new URL(document.cloudinaryUrl);
-  downloadUrl.pathname = downloadUrl.pathname.replace('/image/upload/', '/image/upload/fl_attachment/');
-  response.redirect(302, downloadUrl.toString());
+  // TODO 05 (Individual). El navegador debe guardar el documento como archivo. Informa si no existe.
+  throw new HttpError(501, 'NOT_IMPLEMENTED', 'La descarga de documentos está pendiente.');
 }
 
 export async function deleteDocument(request: Request<{ id: string }>, response: Response) {
-  const document = await requireDocument(request.params.id);
-  // El public_id identifica el recurso que Cloudinary debe borrar. Luego se retira su registro.
-  await destroyImage(document.cloudinaryPublicId);
-
-  try {
-    await Document.deleteOne({ _id: document._id });
-  } catch {
-    throw new HttpError(500, 'DOCUMENT_DELETE_FAILED', 'La imagen fue eliminada, pero falta borrar su registro en MongoDB.');
-  }
-
-  response.sendStatus(204);
+  // TODO 06 (Individual). Elimina la imagen y sus metadatos.
+  // Cloudinary y MongoDB son independientes. Si falla una operación, devuelve un error.
+  throw new HttpError(501, 'NOT_IMPLEMENTED', 'La eliminación de documentos está pendiente.');
 }
 
 async function requireDocument(id: string) {
@@ -138,38 +60,4 @@ async function requireDocument(id: string) {
   }
 
   return document;
-}
-
-function requireCloudinary() {
-  try {
-    return getCloudinary();
-  } catch {
-    throw new HttpError(503, 'CLOUDINARY_NOT_CONFIGURED', 'Configura las credenciales de Cloudinary en .env.');
-  }
-}
-
-async function destroyImage(publicId: string) {
-  const cloudinary = requireCloudinary();
-  try {
-    const { result } = await cloudinary.uploader.destroy(publicId, {
-      resource_type: 'image',
-      invalidate: true,
-    });
-
-    if (result !== 'ok' && result !== 'not found') {
-      throw new Error('Cloudinary no confirmó la eliminación.');
-    }
-  } catch {
-    throw new HttpError(502, 'CLOUDINARY_DELETE_FAILED', 'Cloudinary no pudo eliminar la imagen.');
-  }
-}
-
-async function cleanUploadedImages(uploadedImages: UploadApiResponse[]) {
-  const results = await Promise.allSettled(
-    uploadedImages.map((image) => destroyImage(image.public_id)),
-  );
-
-  if (results.some((result) => result.status === 'rejected')) {
-    console.error('No se pudieron limpiar todas las imágenes del lote fallido en Cloudinary.');
-  }
 }

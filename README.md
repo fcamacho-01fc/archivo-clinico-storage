@@ -1,73 +1,62 @@
 # Archivo Clínico
 
-Aplicación para **Tecnologías de Desarrollo en el Servidor**. El formulario envía las imágenes a Express, Multer las recibe en memoria, Cloudinary almacena los archivos y MongoDB guarda los expedientes y los metadatos. Usa exclusivamente imágenes y expedientes ficticios.
+Proyecto inicial del Code Lab de **Tecnologías de Desarrollo en el Servidor**. La interfaz permite seleccionar expedientes ficticios y, al completar los ejercicios, gestionar sus imágenes. MongoDB guarda los expedientes y los metadatos. Cloudinary almacenará las imágenes.
 
 ## Instalación y arranque local
 
-Requisitos de la práctica: Node.js 22 o 24, npm, MongoDB local escuchando en el puerto 27017 y una cuenta de Cloudinary, que puede ser gratuita.
+Requisitos: Node.js 22 o 24, npm y MongoDB local. Para el arranque inicial basta con MongoDB.
 
-1. Inicia tu instancia local de MongoDB. Si ya tienes Docker, puedes levantar una en tu equipo con este comando:
+1. Inicia MongoDB en el puerto 27017. Si ya tienes una instancia local, úsala. Si usas Docker y necesitas crear el contenedor, ejecuta:
 
    ```bash
    docker run --name archivo-clinico-mongo -d -p 127.0.0.1:27017:27017 -v archivo-clinico-mongo-data:/data/db mongo:7
    ```
 
-   En sesiones posteriores puedes reutilizar el contenedor con `docker start archivo-clinico-mongo`.
+   Para volver a iniciar el contenedor existente, ejecuta `docker start archivo-clinico-mongo`.
 
-2. Desde la carpeta `archivo-clinico`, instala las dependencias y crea el archivo de configuración local:
+2. Desde la raíz del proyecto, instala las dependencias y prepara la configuración:
 
    ```bash
    npm ci
    test -f .env || cp .env.example .env
    ```
 
-3. Edita `.env`. Para MongoDB local, usa `MONGO_URI=mongodb://127.0.0.1:27017/archivo_clinico`. Obtén los valores de `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET` en la consola de Cloudinary. Guárdalos únicamente en `.env`, que Git ignora. Con las claves vacías puedes iniciar la aplicación y listar expedientes. La carga y el borrado de imágenes requieren las credenciales.
+   Verifica en `.env` que `MONGO_URI` apunte a `mongodb://127.0.0.1:27017/archivo_clinico_estudiante`. Deja vacías las variables de Cloudinary hasta configurar el SDK. Cuando obtengas tus credenciales, guárdalas en `.env`.
 
-4. Carga los tres expedientes iniciales y abre [Archivo Clínico](http://localhost:3000):
+3. Carga los tres expedientes ficticios e inicia el servidor de desarrollo:
 
    ```bash
    npm run seed
    npm run dev
    ```
 
-Para ejecutar la versión compilada, detén el servidor de desarrollo primero:
+   Abre [Archivo Clínico](http://localhost:3000). Para ejecutar la versión compilada, detén el servidor de desarrollo y usa `npm run build` seguido de `npm start`.
 
-```bash
-npm run build
-npm start
-```
+## Actividades por completar (TODOs)
 
-Cloudinary recibe recursos de tipo `image` en la carpeta `archivo-clinico-demo`. La configuración usa el modo de carpetas dinámicas. Si tu cuenta utiliza carpetas fijas, cambia `asset_folder: uploadFolder` por `folder: uploadFolder` en la llamada a `upload_stream`. La demo usa entrega pública de imágenes y la opción de descarga `fl_attachment`. Consulta [Modos de carpetas](https://cloudinary.com/documentation/folder_modes) y [Entrega como archivo adjunto](https://cloudinary.com/documentation/transformation_reference#attachment).
+Sigue el orden **01 → 02 → 03 → 04 → 05 → 06**. Las actividades 01 a 04 son guiadas. Las actividades 05 y 06 se resuelven de forma individual.
 
-## API
+| TODO | Actividad | Archivo a modificar | Función o sección | Modalidad |
+| --- | --- | --- | --- | --- |
+| 01 | Instalar Cloudinary | `package.json` | Dependencias (`dependencies`) | Guiado |
+| 02 | Configurar Cloudinary | `src/config/cloudinary.ts` | `getCloudinary` | Guiado |
+| 03 | Consultar documentos y URLs desde MongoDB | `src/controllers/document.controller.ts` | `listDocuments` | Guiado |
+| 04 | Subir archivos y guardar metadatos | `src/controllers/document.controller.ts` | `uploadDocuments` | Guiado |
+| 05 | Descargar un documento | `src/controllers/document.controller.ts` | `downloadDocument` | Individual |
+| 06 | Eliminar un documento | `src/controllers/document.controller.ts` | `deleteDocument` | Individual |
 
-Los éxitos con JSON devuelven `{ data }` y los errores devuelven `{ error: { code, message } }`. Los IDs son los `_id` devueltos por MongoDB.
+**TODO 01.** Desde la raíz del proyecto, ejecuta `npm install cloudinary`. Para la siguiente actividad, configura `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET` en `.env`.
 
-| Método y ruta | Resultado |
-| --- | --- |
-| `GET /api/patients` | `200` con los expedientes ficticios. |
-| `GET /api/patients/:id/documents` | `200` con los documentos del expediente. |
-| `POST /api/patients/:id/documents` | `201` con los documentos creados. Envía `multipart/form-data` con uno a tres campos `files` y un `documentType` para todo el lote. |
-| `GET /api/documents/:id/url` | `200` con `{ data: { url } }`. |
-| `GET /api/documents/:id/download` | `302` hacia la imagen como archivo adjunto. |
-| `DELETE /api/documents/:id` | `204` cuando termina la eliminación. |
+## Comprobaciones
 
-El formulario acepta los tipos **Nota médica**, **Resultado de estudio** y **Receta**. Los archivos pueden ser JPEG, PNG o WebP y pesar hasta 2 MiB cada uno. La API devuelve `400` para formularios o IDs inválidos, `404` para registros ausentes, `413` por tamaño, `415` por MIME, `502` cuando falla Cloudinary, `503` por credenciales sin configurar y `500` ante fallos de persistencia.
+**Antes de completar las actividades**
 
-## Verificación manual en cinco pasos
+- Ejecuta `npm run build` y comprueba que la página abra con los expedientes `EXP-001`, `EXP-002` y `EXP-003`.
+- Selecciona un expediente y envía una imagen sintética válida. La galería y el formulario mostrarán que sus operaciones están pendientes. Una petición válida a una ruta pendiente devuelve `501` con un mensaje en español.
 
-1. Ejecuta `npm run build`, corre `npm run seed` dos veces e inicia el servidor. En un navegador, comprueba que el selector muestre `EXP-001`, `EXP-002` y `EXP-003` una sola vez cada uno.
-2. Crea tres imágenes sintéticas, por ejemplo, capturas de texto que digan «Documento ficticio». Cárgalas juntas. Comprueba las tres tarjetas, revisa la carpeta de Cloudinary y cambia de expediente para comprobar la asociación.
-3. Prueba un formulario sin archivos, uno con cuatro, un archivo GIF y uno de más de 2 MiB. Comprueba los mensajes de la API y verifica que el lote rechazado no aparezca en la galería. En una prueba de API, usa un ID mal formado y otro válido pero ausente para observar `400` y `404`.
-4. Selecciona **Ver** y **Descargar**. Comprueba que la descarga guarde una imagen que puedas abrir. Consulta `/api/documents/:id/url` y comprueba que su valor coincida con la URL de visualización.
-5. Elimina una imagen. Verifica que desaparezca del expediente y de la biblioteca de Cloudinary. Consulta su ruta `/url` de nuevo y comprueba el `404`.
+**Después de completar las actividades**
 
-## Flujo de almacenamiento
+- Carga hasta tres imágenes sintéticas JPEG, PNG o WebP de hasta 2 MiB cada una. Recarga la página y comprueba que estén en el expediente correcto y que aparezcan sus metadatos y vistas previas.
+- Descarga un documento y abre el archivo guardado. Elimina otro y comprueba que desaparezca de la galería, de MongoDB y de Cloudinary. Verifica que la API devuelva `404` si el documento solicitado ya no existe.
 
-Sigue una petición desde `patient.routes.ts` por el middleware de Multer hasta [el controlador de documentos](src/controllers/document.controller.ts). `uploadImages` envía los buffers a Cloudinary y `saveDocuments` guarda las referencias y los metadatos en MongoDB. `deleteDocument` coordina la eliminación de la imagen y de su registro.
-
-## Límites de la demostración
-
-Las URLs de Cloudinary son públicas. Usa únicamente datos sintéticos. Una aplicación hospitalaria real requeriría autenticación, autorización, acceso privado a archivos, auditoría, validación del contenido, políticas de retención y controles legales y de seguridad.
-
-MongoDB y Cloudinary realizan operaciones independientes. Ante una carga parcial o un error al guardar el lote, el controlador intenta retirar los recursos creados. Si esa limpieza también falla, pueden quedar imágenes o metadatos huérfanos. En un borrado, la imagen puede desaparecer mientras su registro sigue en MongoDB. Un segundo intento puede completar el borrado si Cloudinary indica que la imagen ya está ausente.
+Usa exclusivamente imágenes y expedientes ficticios. Las URLs públicas de esta práctica son inadecuadas para datos clínicos reales.
