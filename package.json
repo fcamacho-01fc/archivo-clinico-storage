@@ -1,0 +1,26 @@
+{
+  "name": "archivo-clinico",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Demostración de almacenamiento de documentos clínicos ficticios",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "seed": "tsx src/scripts/seed.ts",
+    "build": "tsc && node -e \"const { cpSync } = require('node:fs'); cpSync('src/views', 'dist/views', { recursive: true }); cpSync('src/public', 'dist/public', { recursive: true });\"",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "cloudinary": "^2.11.0",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "mongoose": "^8.18.1",
+    "multer": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^22.20.4",
+    "tsx": "^4.20.5",
+    "typescript": "~5.9.2"
+  }
+}

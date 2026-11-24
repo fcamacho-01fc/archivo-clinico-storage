@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Archivo Clínico</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <script src="/js/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>Archivo Clínico</h1>
+
+    <section aria-labelledby="patient-heading">
+      <h2 id="patient-heading">Expediente</h2>
+      <label for="patient">Selecciona un expediente</label>
+      <select id="patient" disabled></select>
+    </section>
+
+    <section aria-labelledby="upload-heading">
+      <h2 id="upload-heading">Cargar documentos</h2>
+      <form id="upload-form">
+        <fieldset disabled>
+          <label for="document-type">Tipo de documento</label>
+          <select id="document-type" name="documentType" required>
+            <option value="">Selecciona un tipo</option>
+            <option>Nota médica</option>
+            <option>Resultado de estudio</option>
+            <option>Receta</option>
+          </select>
+          <label for="files">Imágenes</label>
+          <input id="files" name="files" type="file" accept="image/jpeg,image/png,image/webp"
+            aria-describedby="file-help" multiple required>
+          <small id="file-help">Hasta tres imágenes JPEG, PNG o WebP de hasta 2 MiB cada una.</small>
+          <button type="submit">Cargar</button>
+        </fieldset>
+      </form>
+    </section>
+
+    <p id="status" role="status"></p>
+
+    <section aria-labelledby="documents-heading">
+      <h2 id="documents-heading">Documentos del expediente</h2>
+      <p id="gallery-status" role="status">Selecciona un expediente para ver sus documentos.</p>
+      <ul id="documents" class="gallery"></ul>
+    </section>
+  </main>
+
+  <template id="document-template">
+    <li class="card">
+      <img alt="" loading="lazy">
+      <strong class="filename"></strong>
+      <span class="type"></span>
+      <time></time>
+      <div class="actions">
+        <a class="view" target="_blank" rel="noopener">Ver</a>
+        <a class="download">Descargar</a>
+        <button class="delete" type="button">Eliminar</button>
+      </div>
+    </li>
+  </template>
+</body>
+</html>
