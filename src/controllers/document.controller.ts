@@ -6,8 +6,6 @@ import { HttpError } from '../middleware/error.middleware.js';
 import { Document, documentTypes } from '../models/document.model.js';
 import { requirePatient } from './patient.controller.js';
 
-type CloudinaryClient = ReturnType<typeof getCloudinary>;
-
 export async function listDocuments(request: Request<{ id: string }>, response: Response) {
   const { id } = request.params;
   await requirePatient(id);
@@ -28,17 +26,20 @@ export async function uploadDocuments(request: Request<{ id: string }>, response
 
   const patientId = request.params.id;
   await requirePatient(patientId);
-  const cloudinary = requireCloudinary();
-  const uploadedImages = await uploadImages(cloudinary, files);
-  const documents = await saveDocuments(patientId, documentType, files, uploadedImages).catch(async (error: unknown) => {
-    await cleanUploadedImages(cloudinary, uploadedImages);
+  const uploadedImages = await uploadImages(files);
+  let documents;
+  try {
+    documents = await saveDocuments(patientId, documentType, files, uploadedImages);
+  } catch (error) {
+    await cleanUploadedImages(uploadedImages);
     throw error;
-  });
+  }
 
   response.status(201).json({ data: documents });
 }
 
-async function uploadImages(cloudinary: CloudinaryClient, files: Express.Multer.File[]) {
+async function uploadImages(files: Express.Multer.File[]) {
+  const cloudinary = requireCloudinary();
   const uploadedImages: UploadApiResponse[] = [];
 
   try {
@@ -64,7 +65,7 @@ async function uploadImages(cloudinary: CloudinaryClient, files: Express.Multer.
 
     return uploadedImages;
   } catch {
-    await cleanUploadedImages(cloudinary, uploadedImages);
+    await cleanUploadedImages(uploadedImages);
     throw new HttpError(502, 'CLOUDINARY_UPLOAD_FAILED', 'Cloudinary no pudo cargar el lote de imágenes.');
   }
 }
@@ -114,14 +115,8 @@ export async function downloadDocument(request: Request<{ id: string }>, respons
 
 export async function deleteDocument(request: Request<{ id: string }>, response: Response) {
   const document = await requireDocument(request.params.id);
-  const cloudinary = requireCloudinary();
-
-  try {
-    // El public_id identifica el recurso que Cloudinary debe borrar. Luego se retira su registro.
-    await destroyImage(cloudinary, document.cloudinaryPublicId);
-  } catch {
-    throw new HttpError(502, 'CLOUDINARY_DELETE_FAILED', 'Cloudinary no pudo eliminar la imagen.');
-  }
+  // El public_id identifica el recurso que Cloudinary debe borrar. Luego se retira su registro.
+  await destroyImage(document.cloudinaryPublicId);
 
   try {
     await Document.deleteOne({ _id: document._id });
@@ -153,20 +148,25 @@ function requireCloudinary() {
   }
 }
 
-async function destroyImage(cloudinary: CloudinaryClient, publicId: string) {
-  const { result } = await cloudinary.uploader.destroy(publicId, {
-    resource_type: 'image',
-    invalidate: true,
-  });
+async function destroyImage(publicId: string) {
+  const cloudinary = requireCloudinary();
+  try {
+    const { result } = await cloudinary.uploader.destroy(publicId, {
+      resource_type: 'image',
+      invalidate: true,
+    });
 
-  if (result !== 'ok' && result !== 'not found') {
-    throw new Error('Cloudinary no confirmó la eliminación.');
+    if (result !== 'ok' && result !== 'not found') {
+      throw new Error('Cloudinary no confirmó la eliminación.');
+    }
+  } catch {
+    throw new HttpError(502, 'CLOUDINARY_DELETE_FAILED', 'Cloudinary no pudo eliminar la imagen.');
   }
 }
 
-async function cleanUploadedImages(cloudinary: CloudinaryClient, uploadedImages: UploadApiResponse[]) {
+async function cleanUploadedImages(uploadedImages: UploadApiResponse[]) {
   const results = await Promise.allSettled(
-    uploadedImages.map((image) => destroyImage(cloudinary, image.public_id)),
+    uploadedImages.map((image) => destroyImage(image.public_id)),
   );
 
   if (results.some((result) => result.status === 'rejected')) {

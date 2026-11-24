@@ -62,17 +62,9 @@ El formulario acepta los tipos **Nota médica**, **Resultado de estudio** y **Re
 4. Selecciona **Ver** y **Descargar**. Comprueba que la descarga guarde una imagen que puedas abrir. Consulta `/api/documents/:id/url` y comprueba que su valor coincida con la URL de visualización.
 5. Elimina una imagen. Verifica que desaparezca del expediente y de la biblioteca de Cloudinary. Consulta su ruta `/url` de nuevo y comprueba el `404`.
 
-## Funciones para el Code Lab
+## Flujo de almacenamiento
 
-Las tres funciones están completas en [`src/controllers/document.controller.ts`](src/controllers/document.controller.ts). En la versión para estudiantes se podrán convertir en ejercicios:
-
-| Ejercicio | Función | Tarea |
-| --- | --- | --- |
-| TODO 1 | `uploadImages` | Recorrer los buffers, subirlos a Cloudinary y conservar las respuestas. |
-| TODO 2 | `saveDocuments` | Asociar cada imagen al expediente y guardar su URL, ID y metadatos. |
-| TODO 3 | `deleteDocument` | Resolver el documento, coordinar el borrado y responder a la petición. |
-
-Para la explicación en clase, sigue una petición desde `patient.routes.ts` por el middleware de Multer hasta el controlador. Luego recorre la eliminación en el orden Cloudinary → MongoDB.
+Sigue una petición desde `patient.routes.ts` por el middleware de Multer hasta [el controlador de documentos](src/controllers/document.controller.ts). `uploadImages` envía los buffers a Cloudinary y `saveDocuments` guarda las referencias y los metadatos en MongoDB. `deleteDocument` coordina la eliminación de la imagen y de su registro.
 
 ## Límites de la demostración
 
